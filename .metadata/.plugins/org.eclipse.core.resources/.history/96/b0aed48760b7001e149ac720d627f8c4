@@ -1,0 +1,26 @@
+package com.coinbase.connector;
+
+import java.io.IOException;
+import java.security.GeneralSecurityException;
+
+public class Application {
+    	    private CoinbaseConnector coinbaseConnector;
+    	    private GoogleDriveConnector driveService;
+
+    	    public void initialize() throws GeneralSecurityException, IOException {
+    	        // Инициализация сервисов
+    	        coinbaseConnector = new CoinbaseConnector();
+    	        driveService = new GoogleDriveConnector();
+    	        driveService.setupDriveConnection();
+				// Логика после успешного подключения, например:
+				// driveService.listFiles();
+    	    }
+
+    	    public void start() {
+    	    	DataProcessor dataProcessor = new DataProcessor();
+    	        // Здесь код для запуска приложения
+    	       // coinbaseConnector.connectToCoinbase();
+    	        // Дополнительная логика...
+    	    }
+    	    // ... остальной код ...
+    	}

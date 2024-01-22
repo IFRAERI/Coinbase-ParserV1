@@ -1,0 +1,48 @@
+package com.coinbase.connector;
+
+import java.io.IOException;
+import java.security.GeneralSecurityException;
+import java.time.LocalDate;
+
+public class Application {
+    	    private CoinbaseConnector coinbaseConnector;
+    	    private GoogleDriveConnector driveService;
+    	    private HistoricalDataFetcher dataFetcher;
+
+
+    	    public void initialize() throws GeneralSecurityException, IOException {
+    	        // Инициализация сервисов
+    	    	coinbaseConnector = CoinbaseConnector.getInstance();
+    	        driveService = new GoogleDriveConnector();
+    	        //driveService.setupDriveConnection();
+    	        dataFetcher = new HistoricalDataFetcher();
+    	        driveService.setupDriveConnection();
+				// Логика после успешного подключения, например:
+				// driveService.listFiles();
+    	    }
+
+    	    public void start() {
+    	    	DataProcessor dataProcessor = new DataProcessor();
+    	        coinbaseConnector.connectToCoinbase();
+
+    	        // Логика автоматического обновления дат и сбора данных
+    	        LocalDate startDate = LocalDate.of(2021, 1, 1); // начальная дата
+    	        LocalDate endDate = LocalDate.now(); // конечная дата, например, сегодняшняя дата
+
+    	        while (startDate.isBefore(endDate)) {
+    	            String btcUsdData = dataFetcher.fetchMonthlyData("BTC-USD", startDate, endDate);
+    	            String ethUsdData = dataFetcher.fetchMonthlyData("ETH-USD", startDate, endDate);
+    	            String ltcUsdData = dataFetcher.fetchMonthlyData("LTC-USD", startDate, endDate);
+
+    	            // Обработка полученных данных
+    	            // ... Ваша логика обработки данных ...
+
+    	            // Обновление дат для следующего цикла
+    	            startDate = endDate.plusDays(1);
+    	            endDate = endDate.plusMonths(1); // Например, увеличиваем интервал на месяц
+
+    	            // Возможная пауза между запросами
+    	            Thread.sleep(1000);
+    	        }
+    	    // ... остальной код ...
+    	}

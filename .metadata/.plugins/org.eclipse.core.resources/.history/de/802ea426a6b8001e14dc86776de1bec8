@@ -1,0 +1,106 @@
+package com.coinbase.connector;
+import java.util.List;
+import java.util.stream.Collectors;
+
+public class DataProcessor {
+
+    // Конструктор класса
+    public DataProcessor() {
+        // Инициализация, если необходима
+    }
+
+    // Метод для обработки данных о ценах
+    public List<PriceData> processPriceData(List<RawPriceData> rawPriceData) {
+        try {
+            return rawPriceData.stream()
+                    .map(this::transformPriceData)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            System.err.println("Error processing price data: " + e.getMessage());
+            // Optionally return an empty list or handle the error as appropriate
+            return List.of();
+        }
+    }
+
+    // Преобразование сырых данных о ценах в формат PriceData
+    private PriceData transformPriceData(RawPriceData rawData) {
+        // Assuming this method is straightforward and less prone to errors
+        double price = rawData.getPrice();
+        String currency = rawData.getCurrency();
+        long timestamp = rawData.getTimestamp();
+        return new PriceData(price, currency, timestamp);
+    }
+
+
+    // Внутренние классы и другие методы...
+
+    
+
+    // Метод для обработки данных о торговых объемах
+    public List<VolumeData> processVolumeData(List<RawVolumeData> rawVolumeData) {
+        try {
+            return rawVolumeData.stream()
+                    .map(this::transformVolumeData)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            System.err.println("Error processing volume data: " + e.getMessage());
+            // Optionally return an empty list or handle the error as appropriate
+            return List.of();
+        }
+    }
+
+    // Другие методы для обработки различных типов данных
+
+    // Вспомогательные методы, если необходимы
+
+    // Внутренние классы для представления обработанных данных
+    public static class PriceData {
+        private double price;
+        private String currency;
+        private long timestamp;
+
+        // Конструктор
+        public PriceData(double price, String currency, long timestamp) {
+            this.price = price;
+            this.currency = currency;
+            this.timestamp = timestamp;
+        }
+
+        // Геттеры и сеттеры
+        public double getPrice() {
+            return price;
+        }
+
+        public void setPrice(double price) {
+            this.price = price;
+        }
+
+        public String getCurrency() {
+            return currency;
+        }
+
+        public void setCurrency(String currency) {
+            this.currency = currency;
+        }
+
+        public long getTimestamp() {
+            return timestamp;
+        }
+
+        public void setTimestamp(long timestamp) {
+            this.timestamp = timestamp;
+        }
+    }
+
+
+    private VolumeData transformVolumeData(RawVolumeData rawData) {
+        // Assuming this method is straightforward and less prone to errors
+        double volume = rawData.getVolume();
+        String currencyPair = rawData.getCurrencyPair();
+        long timestamp = rawData.getTimestamp();
+
+        return new VolumeData(volume, currencyPair, timestamp);
+    }
+
+    // Другие внутренние классы для различных типов данных
+}

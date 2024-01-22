@@ -1,0 +1,38 @@
+package com.coinbase.connector;
+
+import java.io.IOException;
+import java.security.GeneralSecurityException;
+
+public class Application {
+    	    private CoinbaseConnector coinbaseConnector;
+    	    private GoogleDriveConnector driveService;
+    	    private HistoricalDataFetcher dataFetcher;
+
+
+    	    public void initialize() throws GeneralSecurityException, IOException {
+    	        // Инициализация сервисов
+    	        coinbaseConnector = new CoinbaseConnector();
+    	        driveService = new GoogleDriveConnector();
+    	        driveService.setupDriveConnection();
+    	        dataFetcher = new HistoricalDataFetcher();
+    	        driveService.setupDriveConnection();
+				// Логика после успешного подключения, например:
+				// driveService.listFiles();
+    	    }
+
+    	    public void start() {
+    	    	DataProcessor dataProcessor = new DataProcessor();
+    	    	coinbaseConnector.connectToCoinbase();
+    	        // Получение исторических данных
+    	        try {
+    	            String historicalData = dataFetcher.fetchMonthlyData(/* параметры дат */);
+    	            // Обработка полученных данных
+    	        } catch (Exception e) {
+    	            e.printStackTrace();
+    	        }
+    	        // Здесь код для запуска приложения
+    	       // coinbaseConnector.connectToCoinbase();
+    	        // Дополнительная логика...
+    	    }
+    	    // ... остальной код ...
+    	}

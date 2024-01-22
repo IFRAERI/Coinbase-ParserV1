@@ -1,0 +1,63 @@
+package com.coinbase.connector;
+
+import java.io.IOException;
+import java.security.GeneralSecurityException;
+import java.time.LocalDate;
+import java.util.List;
+
+import com.coinbase.connector.DataProcessor.PriceData;
+
+public class Application {
+    private CoinbaseConnector coinbaseConnector;
+    private GoogleDriveConnector driveService;
+    private HistoricalDataFetcher dataFetcher;
+    private DataProcessor dataProcessor;
+
+    public void initialize() throws GeneralSecurityException, IOException {
+        coinbaseConnector = CoinbaseConnector.getInstance();
+        driveService = new GoogleDriveConnector();
+        dataFetcher = new HistoricalDataFetcher();
+        dataProcessor = new DataProcessor();
+
+        driveService.setupDriveConnection();
+        // Дополнительная инициализация, если требуется
+    }
+
+    public void start() {
+        // Определение диапазона дат
+        LocalDate startDate = LocalDate.of(2021, 1, 1);
+        LocalDate endDate = LocalDate.now();
+
+        // Цикл для периодического сбора данных
+        while (startDate.isBefore(endDate)) {
+            try {
+                // Получение сырых данных
+                String btcUsdData = dataFetcher.fetchMonthlyData("BTC-USD", startDate, endDate);
+                String ethUsdData = dataFetcher.fetchMonthlyData("ETH-USD", startDate, endDate);
+                String ltcUsdData = dataFetcher.fetchMonthlyData("LTC-USD", startDate, endDate);
+
+                // Парсинг и обработка данных для каждой валютной пары
+                List<RawPriceData> rawBtcData = dataProcessor.parseJsonToRawPriceData(btcUsdData);
+                List<PriceData> processedBtcData = dataProcessor.processPriceData(rawBtcData);
+
+                // Аналогично для ETH и LTC
+                // ...
+
+                // Сохранение или использование обработанных данных
+                // ...
+
+                // Обновление дат для следующего цикла
+                startDate = endDate.plusDays(1);
+                endDate = endDate.plusMonths(1);
+
+                // Пауза между запросами
+                Thread.sleep(1000);
+            } catch (Exception e) {
+                System.err.println("Ошибка в процессе обработки данных: " + e.getMessage());
+                // Обработка исключений, возможная логика восстановления
+            }
+        }
+    }
+
+    // Остальные методы класса...
+}

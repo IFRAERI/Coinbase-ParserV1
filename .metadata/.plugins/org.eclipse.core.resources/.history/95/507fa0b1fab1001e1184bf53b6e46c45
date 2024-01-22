@@ -1,0 +1,98 @@
+package com.coinbase.connector;
+
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.HashMap;
+import java.util.Map;
+
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.math.BigInteger;
+
+public class CoinbaseConnector {
+
+    private Map<String, String> apiCredentials = new HashMap<>();
+
+    public CoinbaseConnector() {
+        loadApiCredentials("/home/aleksandr/Documents/api_key.txt");
+        connectToCoinbase();
+    }
+
+    private void loadApiCredentials(String filePath) {
+        try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String[] parts = line.split("=");
+                if (parts.length == 2) {
+                    apiCredentials.put(parts[0].trim(), parts[1].trim());
+                } else {
+                    System.err.println("Skipping invalid line in API credentials file: " + line);
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("Error reading API credentials: " + e.getMessage());
+        }
+    }
+
+    private void connectToCoinbase() {
+        String apiKey = apiCredentials.get("API_KEY");
+        String apiSecret = apiCredentials.get("API_SECRET");
+        String timestamp = String.valueOf(System.currentTimeMillis() / 1000);
+        String requestPath = "/v2/accounts";
+        String method = "GET";
+        String signature = generateSignature(apiSecret, timestamp, method, requestPath);
+
+        String uri = "https://api.coinbase.com" + requestPath;
+
+        try {
+            URL url = new URL(uri);
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod(method);
+            connection.setRequestProperty("CB-ACCESS-KEY", apiKey);
+            connection.setRequestProperty("CB-ACCESS-SIGN", signature);
+            connection.setRequestProperty("CB-ACCESS-TIMESTAMP", timestamp);
+            connection.setRequestProperty("Accept", "application/json");
+
+            int responseCode = connection.getResponseCode();
+            if (responseCode == HttpURLConnection.HTTP_OK) {
+                BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+                String inputLine;
+                StringBuilder response = new StringBuilder();
+                while ((inputLine = in.readLine()) != null) {
+                    response.append(inputLine);
+                }
+                in.close();
+                System.out.println("Successfully connected to Coinbase.");
+                // Обработка и вывод информации о балансе
+                CoinbaseAccountService accountService = new CoinbaseAccountService();
+                accountService.printAccountBalances(response.toString());
+            } else {
+                System.err.println("Failed to connect to Coinbase. Response Code: " + responseCode);
+            }
+        } catch (IOException e) {
+            System.err.println("An error occurred: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private String generateSignature(String apiSecret, String timestamp, String method, String requestPath) {
+        try {
+            String prehash = timestamp + method + requestPath;
+            Mac sha256Hmac = Mac.getInstance("HmacSHA256");
+            SecretKeySpec secretKeySpec = new SecretKeySpec(apiSecret.getBytes(), "HmacSHA256");
+            sha256Hmac.init(secretKeySpec);
+            byte[] hash = sha256Hmac.doFinal(prehash.getBytes());
+            return String.format("%064x", new BigInteger(1, hash));
+        } catch (Exception e) {
+            throw new RuntimeException("Unable to sign the request", e);
+        }
+    }
+
+    public static void main(String[] args) {
+        new CoinbaseConnector();
+    }
+}

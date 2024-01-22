@@ -1,0 +1,166 @@
+package com.coinbase.connector;
+
+import java.util.List;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import java.util.ArrayList;
+
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.HashMap;
+import java.util.Map;
+
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.math.BigInteger;
+
+public class CoinbaseConnector {
+
+    private Map<String, String> apiCredentials = new HashMap<>();
+
+    public CoinbaseConnector() {
+        loadApiCredentials("/home/aleksandr/Documents/api_key.txt");
+        connectToCoinbase();
+    }
+
+    private void loadApiCredentials(String filePath) {
+        try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String[] parts = line.split("=");
+                if (parts.length == 2) {
+                    apiCredentials.put(parts[0].trim(), parts[1].trim());
+                } else {
+                    System.err.println("Skipping invalid line in API credentials file: " + line);
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("Error reading API credentials: " + e.getMessage());
+        }
+    }
+
+    public void connectToCoinbase() {
+        String apiKey = apiCredentials.get("API_KEY");
+        String apiSecret = apiCredentials.get("API_SECRET");
+        String timestamp = String.valueOf(System.currentTimeMillis() / 1000);
+        String requestPath = "/v2/accounts";
+        String method = "GET";
+        String signature = generateSignature(apiSecret, timestamp, method, requestPath);
+
+        String uri = "https://api.coinbase.com" + requestPath;
+
+        try {
+            URL url = new URL(uri);
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod(method);
+            connection.setRequestProperty("CB-ACCESS-KEY", apiKey);
+            connection.setRequestProperty("CB-ACCESS-SIGN", signature);
+            connection.setRequestProperty("CB-ACCESS-TIMESTAMP", timestamp);
+            connection.setRequestProperty("Accept", "application/json");
+
+            int responseCode = connection.getResponseCode();
+            if (responseCode == HttpURLConnection.HTTP_OK) {
+                BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+                String inputLine;
+                StringBuilder response = new StringBuilder();
+                while ((inputLine = in.readLine()) != null) {
+                    response.append(inputLine);
+                }
+                in.close();
+                System.out.println("Successfully connected to Coinbase.");
+                // Обработка и вывод информации о балансе
+                CoinbaseAccountService accountService = new CoinbaseAccountService();
+                accountService.printAccountBalances(response.toString());
+            } else {
+                System.err.println("Failed to connect to Coinbase. Response Code: " + responseCode);
+            }
+        } catch (IOException e) {
+            System.err.println("An error occurred: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    private String sendRequestToCoinbase(String requestPath) {
+        HttpURLConnection connection = null;
+        StringBuilder responseContent = new StringBuilder();
+
+        try {
+            URL url = new URL("https://api.coinbase.com" + requestPath); // Полный URL для запроса
+            connection = (HttpURLConnection) url.openConnection();
+            
+            // Настройка метода запроса и заголовков (например, добавление ключа API, если требуется)
+            connection.setRequestMethod("GET");
+            connection.setRequestProperty("Accept", "application/json");
+            // connection.setRequestProperty("Authorization", "Bearer YOUR_ACCESS_TOKEN"); // Если требуется
+
+            // Чтение ответа
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(connection.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    responseContent.append(line);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace(); // Лучше использовать логгер в реальных приложениях
+        } finally {
+            if (connection != null) {
+                connection.disconnect();
+            }
+        }
+
+        return responseContent.toString();
+    }
+    
+    public List<RawPriceData> getPriceData() {
+        // URL и параметры для запроса данных о ценах
+        String requestPath = "/v2/prices/:currency_pair/spot"; // Пример пути запроса
+        // Здесь :currency_pair должен быть заменен на конкретную валютную пару
+
+        // Используйте существующую логику подключения к API для отправки запроса
+        String response = sendRequestToCoinbase(requestPath); // sendRequestToCoinbase - это гипотетический метод
+
+        // Преобразуйте полученный ответ в список объектов RawPriceData
+        List<RawPriceData> rawPriceData = parseResponseToRawPriceData(response);
+
+        return rawPriceData;
+    }
+    private List<RawPriceData> parseResponseToRawPriceData(String response) {
+        List<RawPriceData> rawPriceDataList = new ArrayList<>();
+
+        JSONObject jsonResponse = new JSONObject(response);
+        JSONArray pricesArray = jsonResponse.getJSONArray("prices"); // Замените на соответствующий ключ JSON
+
+        for (int i = 0; i < pricesArray.length(); i++) {
+            JSONObject priceObject = pricesArray.getJSONObject(i);
+            double price = priceObject.getDouble("price"); // Замените на соответствующие ключи JSON
+            String currency = priceObject.getString("currency");
+            long timestamp = priceObject.getLong("timestamp");
+
+            rawPriceDataList.add(new RawPriceData(price, currency, timestamp));
+        }
+
+        return rawPriceDataList;
+    }
+
+    private String generateSignature(String apiSecret, String timestamp, String method, String requestPath) {
+        try {
+            String prehash = timestamp + method + requestPath;
+            Mac sha256Hmac = Mac.getInstance("HmacSHA256");
+            SecretKeySpec secretKeySpec = new SecretKeySpec(apiSecret.getBytes(), "HmacSHA256");
+            sha256Hmac.init(secretKeySpec);
+            byte[] hash = sha256Hmac.doFinal(prehash.getBytes());
+            return String.format("%064x", new BigInteger(1, hash));
+        } catch (Exception e) {
+            throw new RuntimeException("Unable to sign the request", e);
+        }
+    }
+
+    /*public static void main(String[] args) {
+        new CoinbaseConnector();
+    }*/
+}

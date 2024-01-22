@@ -1,0 +1,100 @@
+package com.coinbase.connector;
+
+import com.google.api.client.http.FileContent;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.JsonFactory;
+import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.services.drive.Drive;
+import com.google.api.services.drive.DriveScopes;
+import com.google.auth.http.HttpCredentialsAdapter;
+import com.google.auth.oauth2.GoogleCredentials;
+import com.google.auth.oauth2.ServiceAccountCredentials;
+import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
+import com.google.api.services.drive.model.File;
+import com.google.api.services.drive.model.FileList;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.security.GeneralSecurityException;
+import java.util.Collections;
+
+public class GoogleDriveConnector {
+
+    private static final String APPLICATION_NAME = "Google Drive API Java Quickstart";
+    private static final JsonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
+    private Drive service;
+    private static final String CREDENTIALS_FILE_PATH = "/home/aleksandr/Documents/coinbasev1-cf25e6c95d35.json";
+
+    /**
+     * Создает GoogleCredentials объект для авторизации.
+     */
+    private static GoogleCredentials getCredentials(final NetHttpTransport HTTP_TRANSPORT) throws IOException {
+        return ServiceAccountCredentials
+            .fromStream(new FileInputStream(CREDENTIALS_FILE_PATH))
+            .createScoped(Collections.singleton(DriveScopes.DRIVE));
+    }
+
+    // Метод для настройки соединения с Drive
+    public void setupDriveConnection() {
+        try {
+            final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
+            service = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, new HttpCredentialsAdapter(getCredentials(HTTP_TRANSPORT)))
+                    .setApplicationName(APPLICATION_NAME)
+                    .build();
+
+            // Если соединение установлено, выводим сообщение об успехе
+            System.out.println("Successfully connected to Google Drive.");
+        } catch (GeneralSecurityException | IOException e) {
+            // В случае возникновения ошибки, выводим сообщение об ошибке
+            System.err.println("Failed to connect to Google Drive: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    private File findFileOnGoogleDrive(String fileName) throws IOException {
+        FileList result = service.files().list()
+                             .setQ("name = '" + fileName + "'")
+                             .setSpaces("drive")
+                             .setFields("files(id, name)")
+                             .execute();
+        for (File file : result.getFiles()) {
+            if (file.getName().equals(fileName)) {
+                return file;
+            }
+        }
+        return null;
+    }
+
+    // Метод для создания файла на Google Drive
+    private void createFileOnGoogleDrive(String fileName, String content) throws IOException {
+        File fileMetadata = new File();
+        fileMetadata.setName(fileName);
+
+        java.io.File filePath = new java.io.File("./temp.txt");
+        // Запись данных во временный файл
+        // ...
+
+        FileContent mediaContent = new FileContent("application/json", filePath);
+        File file = service.files().create(fileMetadata, mediaContent)
+                            .setFields("id")
+                            .execute();
+        System.out.println("File ID: " + file.getId());
+    }
+
+    // Метод для обновления файла на Google Drive
+    private void updateFileOnGoogleDrive(File file, String content) throws IOException {
+        // Логика для обновления содержимого файла
+        // ...
+    }
+
+    // Метод для сохранения данных на Google Drive
+    public void saveDataToDrive(String fileName, String data) throws IOException {
+        File file = findFileOnGoogleDrive(fileName);
+
+        if (file != null) {
+            // Файл существует, обновляем его содержимое
+            updateFileOnGoogleDrive(file, data);
+        } else {
+            // Файл не существует, создаем новый
+            createFileOnGoogleDrive(fileName, data);
+        }
+    }
+}

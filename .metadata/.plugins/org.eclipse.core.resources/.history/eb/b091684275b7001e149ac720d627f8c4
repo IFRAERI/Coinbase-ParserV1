@@ -1,0 +1,41 @@
+package com.coinbase.connector;
+
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+
+public class HistoricalDataFetcher {
+    
+    private static final String BASE_URL = "https://api.pro.coinbase.com/products";
+    private static final String CURRENCY_PAIR = "BTC-USD"; // Пример с BTC к USD
+    private static final String GRANULARITY = "86400"; // Данные за одни сутки
+    
+    public String fetchMonthlyData(LocalDate start, LocalDate end) throws IOException, InterruptedException {
+        // Форматируем даты в ISO_INSTANT формат.
+    	DateTimeFormatter formatter = DateTimeFormatter.ISO_INSTANT;
+        String startDateTime = start.atStartOfDay(ZoneOffset.UTC).toInstant().toString();
+        String endDateTime = end.atStartOfDay(ZoneOffset.UTC).toInstant().toString();
+
+        
+        // Создаем URL запроса.
+        String requestURL = String.format("%s/%s/candles?start=%s&end=%s&granularity=%s",
+                                          BASE_URL, CURRENCY_PAIR, startDateTime, endDateTime, GRANULARITY);
+        
+        // Создаем и выполняем HTTP запрос.
+        HttpClient client = HttpClient.newHttpClient();
+        HttpRequest request = HttpRequest.newBuilder()
+                                .uri(URI.create(requestURL))
+                                .build();
+        
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        System.out.println(response.body());
+        
+        // Возвращаем тело ответа как строку.
+        return response.body();
+    }
+}

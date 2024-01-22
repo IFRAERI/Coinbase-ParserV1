@@ -1,0 +1,5 @@
+com/coinbase/connector/CoinbaseConnector.class
+com/coinbase/connector/Application.class
+com/coinbase/connector/CoinbaseAccountService.class
+com/coinbase/connector/GoogleDriveConnector.class
+com/coinbase/connector/Main.class

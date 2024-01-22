@@ -1,0 +1,54 @@
+package com.coinbase.connector;
+
+import java.io.IOException;
+import java.security.GeneralSecurityException;
+import java.time.LocalDate;
+import java.util.List;
+
+public class Application {
+    private CoinbaseConnector coinbaseConnector;
+    private GoogleDriveConnector driveService;
+    private HistoricalDataFetcher dataFetcher;
+    private DataProcessor dataProcessor;
+
+    public void initialize() throws GeneralSecurityException, IOException {
+        coinbaseConnector = CoinbaseConnector.getInstance();
+        driveService = new GoogleDriveConnector();
+        dataFetcher = new HistoricalDataFetcher();
+        dataProcessor = new DataProcessor();
+
+        driveService.setupDriveConnection();
+    }
+
+    public void start() {
+        LocalDate startDate = LocalDate.of(2021, 1, 1);
+        LocalDate endDate = LocalDate.now();
+
+        while (startDate.isBefore(endDate)) {
+            try {
+                // Получение и обработка данных по каждой валютной паре
+                processCurrencyPair("BTC-USD", startDate, endDate);
+                processCurrencyPair("ETH-USD", startDate, endDate);
+                processCurrencyPair("ETH-BTC", startDate, endDate);
+
+                // Обновление дат для следующего цикла
+                startDate = endDate.plusDays(1);
+                endDate = endDate.plusMonths(1);
+
+                Thread.sleep(1000); // Пауза между запросами
+            } catch (Exception e) {
+                System.err.println("Ошибка в процессе обработки данных: " + e.getMessage());
+            }
+        }
+    }
+
+    private void processCurrencyPair(String currencyPair, LocalDate startDate, LocalDate endDate) throws IOException {
+        String currencyData = dataFetcher.fetchMonthlyData(currencyPair, startDate, endDate);
+        List<RawPriceData> rawCurrencyData = dataProcessor.parseJsonToRawPriceData(currencyData);
+        List<PriceData> processedCurrencyData = dataProcessor.processPriceData(rawCurrencyData);
+        String currencyDataJson = dataProcessor.convertPriceDataListToJson(processedCurrencyData);
+        driveService.saveDataToDrive(currencyPair + "-data.json", currencyDataJson);
+    }
+
+    // ... другие методы класса ...
+}
